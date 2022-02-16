@@ -7,6 +7,7 @@
 - [variables](#variables)
   - [tipos](#tipos)
   - [operadores aritméticos](#operadores-aritméticos)
+  - [operadores asignación](#operadores-asignación)
 - [lóxica](#lóxica)
   - [operadores lóxicos](#operadores-lóxicos)
   - [operadores de comparación](#operadores-de-comparación)
@@ -125,7 +126,7 @@ print(y)
 > 16
 ```
 
-### operadores asignación
+### operadores asignación
 
 ```python
 a = b # asigna a 'a' o valor de 'b'
