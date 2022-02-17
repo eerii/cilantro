@@ -9,15 +9,11 @@ def procesar_ecuacion(*args, nomes=False):
     keys = []
 
     for arg in args:
-        par_dict = {}
+        ecuaciones.append({})
+        d = ecuaciones[-1]
 
         # Eliminar espazos
         e = arg.replace(" ", "") 
-
-        # Engadir soporte para restas
-        e = e.replace("-", "+-")
-        if e[0] == "+":
-            e = e[1:]
 
         # Determinar o tipo (int ou float)
         tipo = float if "." in e else int
@@ -26,6 +22,11 @@ def procesar_ecuacion(*args, nomes=False):
         if (e.count("=") != 1):
             raise ValueError("[error] a ecuación non ten o formato correcto, falta un =")
         e_a, e_b = e.split("=")
+
+        # Engadir soporte para restas
+        e_a = e_a.replace("-", "+-")
+        if e_a[0] == "+":
+            e_a = e_a[1:]
 
         # Procesar parte a (dereita)
         for x in e_a.split("+"):
@@ -46,29 +47,35 @@ def procesar_ecuacion(*args, nomes=False):
 
             # Engadir ao diccionario
             try:
-                par_dict[xi] = tipo(a) if not xi in par_dict else par_dict[xi] + tipo(a)
+                d[xi] = tipo(a) if not xi in d else d[xi] + tipo(a)
             except:
                 raise ValueError("[error] a ecuación non ten o formato correcto, a non é un número({})".format(a))
 
         # Procesar parte b (esquerda)
         try:
-            par_dict["b"] = tipo(e_b)
+            d["b"] = tipo(e_b)
         except:
             raise ValueError("[error] a ecuación non ten o formato correcto, b non é un número ({})".format(e_b))
 
-        # Añadir a lista de ecuaciones
-        ecuaciones += [[par_dict[x] for x in par_dict]]
-
-        # Comprobar chaves do diccionario
+        # Engadir novas chaves ó diccionario
         if len(keys) == 0:
-            keys = par_dict.keys()
-        elif keys != par_dict.keys():
-            raise IndexError("[error] a ecuación non ten o formato correcto, todas as ecuacións deben de ter as mesmas incógnitas")
-        
-    
+            keys = list(d.keys())
+        new_keys = set(d.keys()) - set(keys)
+        for k in new_keys:
+            keys.insert(-1, k)
+        for e in ecuaciones:
+            e.update(dict([(k, 0) for k in new_keys if not k in e]))
+
+        # Arreglar as variables que faltan na ecuación
+        missing_keys = set(keys) - set(d.keys())
+        for k in missing_keys:
+            d[k] = 0
+
+    # Ordear a lista de ecuacións polos nomes ordeados
+    ec_list = [[ec[key] for key in sorted(ec.keys(), key=lambda x: keys.index(x))] for ec in ecuaciones]
     # Devolver un array de orde 1 ou 2 (dependendo de unha ou máis ecuacións pasadas á función)
     # Tamén devolve os nomes das incógnitas se está así indicado
-    ec_arr = np.array(ecuaciones[0]) if len(ecuaciones) == 1 else np.array(ecuaciones)
+    ec_arr = np.array(ec_list[0]) if len(ec_list) == 1 else np.array(ec_list)
     if nomes:
         return ec_arr, keys
     return ec_arr
