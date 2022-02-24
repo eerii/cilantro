@@ -1,6 +1,7 @@
 # Sistemas de ecuacións lineais - Tema 2
 # Entrega voluntaria (Exercicio 4)
 # Eliminación gaussiana con pivoteo de N ecuacións lineais con pivote
+# José Pazos Pérez
 
 # Librerías
 import numpy as np
@@ -244,10 +245,10 @@ solucions_a_texto = lambda sol, keys, sep: sep.join(["{} = {:.6f}".format(list(k
 # Implementar un programa que resolva o seguinte sistema de ecuacións lineais:
 
 ecuacions = (
-    " x1  + 2x2 - 3x3 - x4 = -2.5",
-    "-3x2 + 2x3 + 6x4      = 7",
-    "-3x1 -  x2 + 3x3 + x4 = 2.5",
-    " 2x1 + 3x2 + 2x3 - x4 = -10.5",
+    " x1  + 2x2 - 3x3 -  x4 = -2.5",
+    "     - 3x2 + 2x3 + 6x4 = 7",
+    "-3x1 -  x2 + 3x3 +  x4 = 2.5",
+    " 2x1 + 3x2 + 2x3 -  x4 = -10.5",
 )
 print("Sistema inicial:")
 print("\n".join(ecuacions))

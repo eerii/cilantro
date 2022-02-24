@@ -1,6 +1,7 @@
 # Sistemas de ecuacións lineais - Tema 2
 # Entrega obligatoria (Exercicio 1)
 # Eliminación gaussiana sen pivoteo
+# José Pazos Pérez
 
 # Librerías
 import numpy as np
