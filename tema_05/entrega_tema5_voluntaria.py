@@ -11,7 +11,7 @@ import time
 # En este exercicio o problema principal é que conforme o número de iteracións aumenta,
 # o tempo de computo aumenta moito (parece que é de complexidade O(N))
 # Por este motivo intentei implementar catro solucións distintas:
-# - Simple: Tempo para 10^8: ~150s
+# - Simple (sin arrays): Tempo para 10^8: ~150s
 # - Arrays grandes: Tempo para 10^8: ~12s
 # - Arrays con bloques de memoria: Tempo para 10^8: ~5s
 # - Arrays + JIT: Tempo para 10^8: ~1s
@@ -23,7 +23,7 @@ import time
 # Pedir por entrada o método desexado
 solucion = 0
 print("---\nSelección de método:\n(Consulta máis información sobre os métodos no arquivo do programa)\n---")
-print("1. Simple (~150s para 10^8)")
+print("1. Simple (sin arrays, ~150s para 10^8)")
 print("2. Arrays grandes (~12s para 10^8)")
 print("3. Bloques de memoria (~5s para 10^8)")
 print("4. Compilador JIT (~1s para 10^8)")
