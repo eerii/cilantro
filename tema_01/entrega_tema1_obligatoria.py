@@ -11,7 +11,7 @@ f = lambda x: x**2 - 3*x + np.exp(x) - 2
 # Creación de n subintervalos, devolve unha tupla (i, di)
 # i : array cos n subintervalos entre a e b
 # di : tamaño dun subintervalo
-subintervalos = lambda a, b, n : (np.linspace(a, b, n+1), (b - a) / (n+1))
+subintervalos = lambda a, b, n : (np.linspace(a, b, n+1), (b - a) / (n))
 
 # Comprobar se dous valores teñen signo distinto, devolve un bool
 signo_distinto = lambda x, y: x * y < 0
