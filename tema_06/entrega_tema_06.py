@@ -6,8 +6,9 @@
 # Importaciones
 # --------------------------------------------------
 import matplotlib.pyplot as plt
+from matplotlib.widgets import Slider
 from typing import List, Callable
-import functools
+from functools import wraps
 
 # --------------------------------------------------
 # Esquemas de integración
@@ -51,7 +52,7 @@ def runge_kutta_4(f : List[Callable[..., float]], x : List[float], t : float, dt
 # --------------------------------------------------
 
 def ode(metodo):
-    @functools.wraps(metodo)
+    @wraps(metodo)
     def wrapper(f : List[Callable[..., float]], x0 : List[float], n : int, dt : float):
         assert len(x0) == len(f), "La cantidad de variables debe coincidir con la cantidad de ecuaciones"
         # Lista de valores de tiempo
@@ -83,10 +84,18 @@ def static_vars(func, **kwargs):
 # Función decorador para facilitar la representación gráfica de nuestras soluciones
 # Toma como parámetros el color y el nombre del método usado
 def plot_ode(func, color: str, label: str):
-    @functools.wraps(func)
+    @wraps(func)
     def wrapper(f : List[Callable[..., float]], x0 : List[float], n : int, dt : float):
         assert plot_ode.dim == len(f), "La dimension indicada en iniciar_plot() ha de coincidir con la dimension del sistema representado"
         assert plot_ode.dim > 0 and plot_ode.dim <= 3, "Solo se puede hacer una representación para 1, 2 o 3 variables"
+
+        # Crear sliders
+        if len(plot_ode.metodos) == 0:
+            ax_slider_dt = plt.axes((0.25, 0.05, 0.5, 0.03))
+            plot_ode.slider_dt = Slider(ax_slider_dt, "dt", dt * 0.1, dt * 4, dt)
+        
+        # Añadir método
+        plot_ode.metodos.append(func)
 
         # Cáclulo de los valores de utilizando el método apropiado (euler, rk2, rk4)
         x, t = func(f, x0, n, dt)
@@ -94,51 +103,78 @@ def plot_ode(func, color: str, label: str):
         # Plot principal (ax)
         # ---
         # 1D
-        if (len(x) == 1):
-            plot_ode.ax.plot(t, x[0], color=color, label=label)
+        if len(x) == 1:
+            line, = plot_ode.ax.plot(t, x[0], color=color, label=label)
+            plot_ode.lines.append([line])
             plot_ode.ax.set_xlabel("t")
             plot_ode.ax.set_ylabel("x")
         # 2D
-        if (len(x) == 2):
-            plot_ode.ax.plot(*x, color=color, label=label)
+        elif len(x) == 2:
+            line, = plot_ode.ax.plot(*x, color=color, label=label)
+            plot_ode.lines.append([line])
             plot_ode.ax.set_xlabel("x")
             plot_ode.ax.set_ylabel("y")
         # 3D
-        if (len(x) == 3):
-            plot_ode.ax.plot(*x, color=color, label=label)
+        else:
+            line, = plot_ode.ax.plot3D(*x, color=color, label=label)
+            plot_ode.lines.append([line])
 
         # Plots auxiliares (ax_t)
         # ---
         for i in range(len(plot_ode.ax_t)):
-            plot_ode.ax_t[i].plot(t, x[i], color=color, label=label)
+            aux_line, = plot_ode.ax_t[i].plot(t, x[i], color=color, label=label)
+            plot_ode.lines[-1].append(aux_line)
             plot_ode.ax_t[i].set_ylabel(["x", "y", "z"][i])
             if i == len(plot_ode.ax_t) - 1:
                 plot_ode.ax_t[i].set_xlabel("t")
 
-        # Otros parámetros
-        plt.legend()
+        # Actualizar al cambiar el slider
+        def update(dt_):
+            for i in range(len(plot_ode.metodos)):
+                x, t = plot_ode.metodos[i](f, x0, n, dt_)
+                # Plot principal
+                if len(x) == 1:
+                    plot_ode.lines[i][0].set_data(t, x[0])
+                elif len(x) == 2:
+                    plot_ode.lines[i][0].set_data(*x)
+                else:
+                    plot_ode.lines[i][0].set_data_3d(*x)
+                for j in range(1, len(plot_ode.lines[i])):
+                    plot_ode.lines[i][j].set_ydata(x[j-1])
+        plot_ode.slider_dt.on_changed(update)
     return wrapper
 
 # Llamar antes de iniciar una nueva gráfica, crea los ejes apropiados compartidos entre las distintas funciones
 # 'dim' es la dimensión del sistema que queremos representar (1, 2 o 3)
 def iniciar_plot(dim: int, title: str):
+    assert dim > 0 and dim <= 3, "Solo se puede hacer una representación para 1, 2 o 3 variables"
+
+    # Crear figura
     fig = plt.figure()
     fig.suptitle(title)
+
+    # Hacer espacio para los sliders
     plt.subplots_adjust(bottom=0.25)
-    if dim == 1:
-        ax = fig.add_subplot(1, 1, 1)
-        static_vars(plot_ode, dim=dim, ax=ax, ax_t=[])
+
+    # Crear axes
+    ax : plt.Axes
+    ax_t : List[plt.Axes] = []
+
     if dim == 2:
         ax = fig.add_subplot(1, 2, 1)
-        ax_tx = fig.add_subplot(2, 2, 2)
-        ax_ty = fig.add_subplot(2, 2, 4)
-        static_vars(plot_ode, dim=dim, ax=ax, ax_t=[ax_tx, ax_ty])
-    if dim == 3:
+        ax_t.append(fig.add_subplot(2, 2, 2))
+        ax_t.append(fig.add_subplot(2, 2, 4))
+    elif dim == 3:
         ax = fig.add_subplot(1, 3, (1, 2), projection='3d')
-        ax_tx = fig.add_subplot(3, 3, 3)
-        ax_ty = fig.add_subplot(3, 3, 6)
-        ax_tz = fig.add_subplot(3, 3, 9)
-        static_vars(plot_ode, dim=dim, ax=ax, ax_t=[ax_tx, ax_ty, ax_tz])
+        ax_t.append(fig.add_subplot(3, 3, 3))
+        ax_t.append(fig.add_subplot(3, 3, 6))
+        ax_t.append(fig.add_subplot(3, 3, 9))
+    else:
+        ax = fig.add_subplot(1, 1, 1)
+    
+    # Configurar variables estáticas
+    static_vars(plot_ode, dim=dim, fig=fig, ax=ax, ax_t=ax_t, lines=[], metodos=[])
+
 
 # Aplicamos como decorador
 plot_euler = plot_ode(ode_euler, "tomato", "euler")
@@ -171,7 +207,7 @@ plt.show()
 
 x0 = [0.0, 1.0, 0.0]
 dt = 0.028
-n = 10000
+n = 1000
 
 sigma = 3
 r = 26.5
@@ -186,4 +222,5 @@ plot_euler([f, g, h], x0, n, dt)
 plot_rk2([f, g, h], x0, n, dt)
 plot_rk4([f, g, h], x0, n, dt)
 
-#plt.show()
+#plt.legend()
+plt.show()
