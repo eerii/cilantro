@@ -50,7 +50,7 @@ n = 10000
 # Cálculo y representación
 # --------------------------------------------
 
-u, v = runge_kutta_4((du, dv), (u0, v0), n, dt)
+u, v = runge_kutta_4([du, dv], [u0, v0], n, dt)
     
 plt.plot(u, v, color="royalblue")
 plt.show()
