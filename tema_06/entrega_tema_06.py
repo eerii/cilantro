@@ -47,20 +47,25 @@ def runge_kutta_4(f : List[Callable[..., float]], x : List[float], t : float, dt
 # Parámetros
 #     - f : Lista de funciones pendiente para cada variable
 #     - x0 : Lista de valores iniciales de cada variable
-#     - n : Número de pasos deseado
+#     - t_total : Tiempo total de la simulación
 #     - dt : Paso de tiempo
 # --------------------------------------------------
 
 def ode(metodo):
     @wraps(metodo)
-    def wrapper(f : List[Callable[..., float]], x0 : List[float], n : int, dt : float):
+    def wrapper(f : List[Callable[..., float]], x0 : List[float], t_total : float, dt : float):
         assert len(x0) == len(f), "La cantidad de variables debe coincidir con la cantidad de ecuaciones"
         # Lista de valores de tiempo
-        t = [t_ * dt for t_ in range(n)]
+        t = [0.0]
+        t_restante = t_total
         # Lista de valores de cada variable en cada paso de tiempo
         x = [[x_] for x_ in x0]
         # Iteraciones de integración
-        for i in range(1, n):
+        i = 0
+        while t_restante > 0:
+            i += 1
+            t.append(t[i-1] + dt)
+            t_restante -= dt
             resultado = metodo(f, [x_[i-1] for x_ in x], t[i], dt)
             [x[i].append(resultado[i]) for i in range(len(f))]
         return x, t
@@ -73,6 +78,8 @@ ode_rk4 = ode(runge_kutta_4)
 
 # --------------------------------------------------
 # Representación gráfica con matplotlib
+#       Utiliza matplotlib para representar diferentes gráficas
+#       Además, añade deslizadores para personalizar la simulación desde la propia ventana
 # --------------------------------------------------
 
 # Implementación de variables estáticas a nivel decorador para compartir los ejes entre distintas funciones de ploteado
@@ -122,7 +129,7 @@ def plot_ode(func, color: str, label: str):
         # Plots auxiliares (ax_t)
         # ---
         for i in range(len(plot_ode.ax_t)):
-            aux_line, = plot_ode.ax_t[i].plot(t, x[i], color=color, label=label)
+            aux_line, = plot_ode.ax_t[i].plot(t, x[i], color=color)
             plot_ode.lines[-1].append(aux_line)
             plot_ode.ax_t[i].set_ylabel(["x", "y", "z"][i])
             if i == len(plot_ode.ax_t) - 1:
@@ -140,13 +147,13 @@ def plot_ode(func, color: str, label: str):
                 else:
                     plot_ode.lines[i][0].set_data_3d(*x)
                 for j in range(1, len(plot_ode.lines[i])):
-                    plot_ode.lines[i][j].set_ydata(x[j-1])
+                    plot_ode.lines[i][j].set_data(t, x[j-1])
         plot_ode.slider_dt.on_changed(update)
     return wrapper
 
 # Llamar antes de iniciar una nueva gráfica, crea los ejes apropiados compartidos entre las distintas funciones
 # 'dim' es la dimensión del sistema que queremos representar (1, 2 o 3)
-def iniciar_plot(dim: int, title: str):
+def iniciar_plot(dim: int, title: str, xlim: List[float] = [], ylim: List[float] = []):
     assert dim > 0 and dim <= 3, "Solo se puede hacer una representación para 1, 2 o 3 variables"
 
     # Crear figura
@@ -171,44 +178,123 @@ def iniciar_plot(dim: int, title: str):
         ax_t.append(fig.add_subplot(3, 3, 9))
     else:
         ax = fig.add_subplot(1, 1, 1)
+
+    # Limites de los ejes
+    if len(xlim) == 2:
+        ax.set_xlim(xlim)
+    if len(ylim) == 2:
+        ax.set_ylim(ylim)
     
     # Configurar variables estáticas
     static_vars(plot_ode, dim=dim, fig=fig, ax=ax, ax_t=ax_t, lines=[], metodos=[])
 
+# Mostrar el gráfico actual con leyenda
+def mostrar_plot():
+    plot_ode.fig.legend()
+    plt.show()
 
 # Aplicamos como decorador
 plot_euler = plot_ode(ode_euler, "tomato", "euler")
 plot_rk2 = plot_ode(ode_rk2, "gold", "runge kutta 2")
 plot_rk4 = plot_ode(ode_rk4, "royalblue", "runge kutta 4")
 
-
-
-
+#%%
 # --------------------------------------------------
-# Ejercicios
+# Ejercicio 1
+#       Ecuación logística, describe la dinámica de poblaciones : dP/dt = r * P * (1 - P/k)
+#       r : Tasa de natalidad
+#       k : Recursos de los que dispone la población
 # --------------------------------------------------
 
-f = lambda P, t, r, k: r * P * (1 - P/k) 
+# Condiciones iniciales
+P0 = 1
 
+# Funciones
 r = 0.5
-k = 10
-f_ = lambda P, t: f(P, t, r, k)
+k = 100000
+f = lambda P, t: r * P * (1 - P/k)
 
+# Tiempo
 dt = 0.5
-n = 100
-P0 = 0.0001
+t = 50
 
+# Representación
 iniciar_plot(1, "Ejercicio 1")
-plot_euler([f_], [P0], n, dt)
-plot_rk2([f_], [P0], n, dt)
-plot_rk4([f_], [P0], n, dt)
+plot_euler([f], [P0], t, dt)
+plot_rk2([f], [P0], t, dt)
+plot_rk4([f], [P0], t, dt)
+mostrar_plot()
 
-plt.show()
+#%%
+# --------------------------------------------------
+# Ejercicio 2
+#       Oscilador armónico : x'' + w0**2 * x = 0
+# --------------------------------------------------
 
-x0 = [0.0, 1.0, 0.0]
-dt = 0.028
-n = 1000
+# Condiciones iniciales
+x0 = 1
+w0 = 1
 
+# Funciones
+f = lambda x, y, t: y
+g = lambda x, y, t: -w0**2 * x
+
+# Tiempo
+dt = 0.3
+t = 10
+
+# Representación
+iniciar_plot(2, "Ejercicio 2", [-3, 3], [-3, 3])
+plot_euler([f, g], [x0, w0], t, dt)
+plot_rk2([f, g], [x0, w0], t, dt)
+plot_rk4([f, g], [x0, w0], t, dt)
+mostrar_plot()
+
+#%%
+# --------------------------------------------------
+# Ejercicio 3
+#       Oscilador armónico amortiguado y forzado : x'' + b * x' + w0**2 * x = F * cos(wt)
+# --------------------------------------------------
+
+from numpy import cos
+
+# Condiciones iniciales
+x0 = 1
+w0 = 1
+
+# Funciones
+b = 1
+F = 0.3
+w = 1
+f = lambda x, y, t: y
+g = lambda x, y, t: -w0**2 * x - b*y + F*cos(w * t)
+
+# Tiempo
+dt = 0.3
+t = 15
+
+# Representación
+iniciar_plot(2, "Ejercicio 3", [-1, 2], [-1.5, 1.5])
+plot_euler([f, g], [x0, w0], t, dt)
+plot_rk2([f, g], [x0, w0], t, dt)
+plot_rk4([f, g], [x0, w0], t, dt)
+mostrar_plot()
+
+#%%
+# --------------------------------------------------
+# Ejercicio 4
+#       Sistema de 3 ecuaciones diferenciales
+#       dx/dt = sigma * (Y-X)
+#       dy/dt = r*X - Y - X*Z
+#       dz/dt = X*Y - b*Z
+# --------------------------------------------------
+
+# Condiciones iniciales
+x0 = 0
+y0 = 1
+z0 = 0
+
+# Funciones
 sigma = 3
 r = 26.5
 b = 1
@@ -217,10 +303,13 @@ f = lambda x, y, z, t: sigma * (y - x)
 g = lambda x, y, z, t: r * x - y - x * z
 h = lambda x, y, z, t: x * y - b * z
 
-iniciar_plot(3, "Ejercicio 2")
-plot_euler([f, g, h], x0, n, dt)
-plot_rk2([f, g, h], x0, n, dt)
-plot_rk4([f, g, h], x0, n, dt)
+# Tiempo
+dt = 0.03
+t = 30
 
-#plt.legend()
-plt.show()
+# Representación
+iniciar_plot(3, "Ejercicio 4")
+plot_euler([f, g, h], [x0, y0, z0], t, dt)
+plot_rk2([f, g, h], [x0, y0, z0], t, dt)
+plot_rk4([f, g, h], [x0, y0, z0], t, dt)
+mostrar_plot()
