@@ -1,6 +1,15 @@
 # Ecuaciones Diferenciales Ordinarias (ODE) - Tema 6
 # José Pazos Pérez - G3
-# Ejercicios
+
+# Índice
+#     - [15]  Importaciones
+#     - [23]  Esquemas de integración (euler, runge-kutta 2º, runge-kutta 4º)
+#     - [55]  Decorador para ejecutar el método de integración
+#     - [89]  Función de representación gráfica
+#     - [218] Solución ejercicios 1-4
+#     - [334] Nuevas funciones con paso variable
+#     - [528] Solución ejercicio 5
+#     - [555] Ejercicios 2-4 con paso variable (extra)
 
 # --------------------------------------------------
 # Importaciones
@@ -98,8 +107,9 @@ def plot_ode(func, color: str, label: str):
 
         # Crear sliders
         if len(plot_ode.metodos) == 0:
-            ax_slider_dt = plt.axes((0.25, 0.05, 0.5, 0.03))
-            plot_ode.slider_dt = Slider(ax_slider_dt, "dt", dt * 0.1, dt * 4, dt)
+            slider_dt = Slider(plt.axes((0.05, 0.06, 0.5, 0.03)), "dt", dt * 0.1, dt * 4, dt)
+            slider_x0 = [Slider(plt.axes((0.05 + i * 1.0 / len(x0), 0.02, 0.6 / len(x0), 0.03)), ["x0", "y0", "z0"][i], x0[i] - 10 * max(1, x0[i]), x0[i] + 10 * max(1, x0[i]), x0[i]) for i in range(len(x0))]
+            plot_ode.sliders = [slider_dt, *slider_x0]
         
         # Añadir método
         plot_ode.metodos.append(func)
@@ -136,9 +146,9 @@ def plot_ode(func, color: str, label: str):
                 plot_ode.ax_t[i].set_xlabel("t")
 
         # Actualizar al cambiar el slider
-        def update(dt_):
+        def update(dt_, x0_):
             for i in range(len(plot_ode.metodos)):
-                x, t = plot_ode.metodos[i](f, x0, t_total, dt_)
+                x, t = plot_ode.metodos[i](f, x0_, t_total, dt_)
                 # Plot principal
                 if len(x) == 1:
                     plot_ode.lines[i][0].set_data(t, x[0])
@@ -148,7 +158,12 @@ def plot_ode(func, color: str, label: str):
                     plot_ode.lines[i][0].set_data_3d(*x)
                 for j in range(1, len(plot_ode.lines[i])):
                     plot_ode.lines[i][j].set_data(t, x[j-1])
-        plot_ode.slider_dt.on_changed(update)
+            # Recalcular limites
+            plot_ode.ax.relim()
+            plot_ode.ax.autoscale_view()
+        plot_ode.sliders[0].on_changed(lambda v: update(v, [slider.val for slider in plot_ode.sliders[1:]]))
+        for i in range(len(plot_ode.sliders) - 1):
+            plot_ode.sliders[i+1].on_changed(lambda v: update(plot_ode.sliders[0].val, [v if i+1 == j else plot_ode.sliders[j].val for j in range(1, len(plot_ode.sliders))]))
     return wrapper
 
 # Llamar antes de iniciar una nueva gráfica, crea los ejes apropiados compartidos entre las distintas funciones
@@ -161,7 +176,7 @@ def iniciar_plot(dim: int, title: str, xlim: List[float] = [], ylim: List[float]
     fig.suptitle(title)
 
     # Hacer espacio para los sliders
-    plt.subplots_adjust(bottom=0.25)
+    plt.subplots_adjust(bottom=0.15)
 
     # Crear axes
     ax : plt.Axes
@@ -186,7 +201,7 @@ def iniciar_plot(dim: int, title: str, xlim: List[float] = [], ylim: List[float]
         ax.set_ylim(ylim)
     
     # Configurar variables estáticas
-    static_vars(plot_ode, dim=dim, fig=fig, ax=ax, ax_t=ax_t, lines=[], metodos=[])
+    static_vars(plot_ode, dim=dim, fig=fig, ax=ax, ax_t=ax_t, lines=[], metodos=[], sliders=[])
 
 # Mostrar el gráfico actual con leyenda
 def mostrar_plot():
