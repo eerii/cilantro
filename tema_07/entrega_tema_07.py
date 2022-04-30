@@ -1,19 +1,39 @@
+# Ecuación unidimensional de difusión - Tema 7
+# José Pazos Pérez - G3
+
+# Índice
+#     - [14]  Importacións
+#     - [22]  Preparación de matplotlib
+#     - [36]  Valores iniciais
+#     - [56]  Coeficientes
+#     - [110] Solución da ecuación de difusión
+#     - [223] Funcións auxiliares da representación gráfica
+#     - [494] Execución da aplicación
+
+# ------------------------------------------------------------------
 # Importacións
+# ------------------------------------------------------------------
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.widgets import TextBox, Button, RadioButtons
 import matplotlib
 
 # ------------------------------------------------------------------
-
 # Preparación de matplotlib
+# ------------------------------------------------------------------
+
+# Eixos
 fig, ax = plt.subplots(figsize=(9, 6))
 fig.subplots_adjust(bottom=0.2, right=0.8, top=0.95, left=0.08)
+
+# Modo interactivo
 plt.ion()
 
 # Rotación de cores
 matplotlib.rcParams["axes.prop_cycle"] = matplotlib.cycler("color", ["royalblue", "mediumseagreen", "gold", "orange", "tomato", "hotpink", "mediumorchid"])
 
+# ------------------------------------------------------------------
+# Valores iniciais
 # ------------------------------------------------------------------
 
 # Iteracions temporais
@@ -27,13 +47,15 @@ N = 50
 s = alfa * (dt/dx**2)
 # Eixo temporal
 t = np.linspace(0, dt*N, N+1)
-
+# Valor inicial da temperatura
 Ti = np.random.random(N+1) * 10
+# Condicións de fronteira
 cf = [0, 10]
 
 # ------------------------------------------------------------------
-
-# Coeficientes de x e t para os distintos métodos (actualízase automáticamente cando cambiamos s)
+# Coeficientes de x e t para os distintos métodos 
+# Actualízase automáticamente cando cambiamos s
+# ------------------------------------------------------------------
 coeficientes = lambda: {
     "FTCS": ({
         -1: s,
@@ -85,6 +107,8 @@ coeficientes = lambda: {
 metodo = "FTCS"
 
 # ------------------------------------------------------------------
+# Solución da ecuación de difusión
+# ------------------------------------------------------------------
 
 def representar():
     # Función temperatura
@@ -101,6 +125,8 @@ def representar():
 
     # Dimensión do método (1 para 3 coeficientes, 2 para 5...)
     x_n = (len(cx) >> 1)
+
+    # ---
 
     # Método implícito
     implicito = metodo[0:6] == "[Impl]"
@@ -143,6 +169,8 @@ def representar():
 
     # Limpar a representación anterior
     ax.clear()
+
+    # ---
 
     # Bucle temporal
     for i in range(it):
@@ -187,6 +215,13 @@ def representar():
         ax.relim()
         ax.autoscale_view()
 
+# ------------------------------------------------------------------
+# ------------------------------------------------------------------
+# ------------------------------------------------------------------
+
+# ------------------------------------------------------------------
+# Funcións auxiliares para a representación gráfica
+# Botóns, caixas de texto...
 # ------------------------------------------------------------------
 
 def textbox_expresion():
@@ -306,8 +341,6 @@ def textbox_it():
     textbox_N.box = TextBox(ax_box, "it ", textalignment="center", initial=str(it))
     textbox_N.box.on_submit(submit)
 
-# ------------------------------------------------------------------
-
 def seleccionar_metodo():
     def click(label):
         global metodo
@@ -327,8 +360,6 @@ def seleccionar_metodo():
 
     for c in seleccionar_metodo.buttons.circles:
         c.height /= rscale
-
-# ------------------------------------------------------------------
 
 def cambiar_valor_box(b, t):
     if b.box.text != t:
@@ -390,8 +421,6 @@ def seleccionar_exercicio():
     for c in seleccionar_exercicio.buttons.circles:
         c.height /= rscale * 0.5
         c.width /= 0.5
-
-# ------------------------------------------------------------------
 
 def button_2d3d():
     def click(event):
@@ -458,6 +487,12 @@ def button_flujo():
     button_flujo.button.on_clicked(click)
 
 # ------------------------------------------------------------------
+# ------------------------------------------------------------------
+# ------------------------------------------------------------------
+
+# ------------------------------------------------------------------
+# Parte principal da aplicación
+# ------------------------------------------------------------------
 
 # Función para romper o bucle e sair da aplicacións
 running = True
@@ -465,10 +500,12 @@ def stop(event):
     global running
     running = False
 
-# Parte principal da aplicación
+# Execución
 def main():
+    # Sair da aplicación ó cerrar a ventana de matplotlib
     fig.canvas.mpl_connect('close_event', stop)
 
+    # Debuxar os botóns e caixas de texto
     textbox_expresion()
     textbox_t0()
     button_t0()
@@ -479,21 +516,21 @@ def main():
     textbox_alfa()
     textbox_N()
     textbox_it()
-
     seleccionar_metodo()
     seleccionar_exercicio()
-
     button_sin()
     button_gauss()
     button_rand()
     button_flujo()
     button_2d3d()
 
+    # Representar os valores por defecto
     representar()
 
+    # Bucle de presentación
     while running:
         try:
-            plt.pause(0.01)
+            plt.pause(0.016)
         except KeyboardInterrupt:
             break
 
