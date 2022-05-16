@@ -41,16 +41,16 @@ it = 2000
 # Parámetros da discretización
 dt = 0.1
 dx = 0.5
-alfa = 0.1
+u = 0.05
 N = 50
-# Estabilidade
-s = alfa * (dt/dx**2)
+#
+C = u * (dt/dx)
 # Eixo temporal
 t = np.linspace(0, dt*N, N+1)
 # Valor inicial da temperatura
-Ti = np.random.random(N+1) * 10
+Ti = np.exp(-(t-1.0)**2/0.2)
 # Condicións de fronteira
-cf = [0, 10]
+cf = ["FN", "FN"]
 
 # ------------------------------------------------------------------
 # Coeficientes de x e t para os distintos métodos 
@@ -58,49 +58,41 @@ cf = [0, 10]
 # ------------------------------------------------------------------
 coeficientes = lambda: {
     "FTCS": ({
-        -1: s,
-        0: 1 - 2*s,
-        1: s
+        -1: 0.5*C,
+        0: 1,
+        1: -0.5*C
     }, {}),
 
-    "3 niveis temporais": ({
-        -1: 2*s/3,
-        0: (4/3)*(1 - s),
-        1: 2*s/3
-    }, {
-        -1: -1/3
-    }),
-
-    "5 veciños espaciais": ({
-        -2: -s/12,
-        -1: 4*s/3,
-        0: 1 - 5*s/2,
-        1: 4*s/3,
-        2: -s/12
+    "Upwind": ({
+        -1: C,
+        0: 1 - C,
+        1: 0
     }, {}),
 
     "DuFort-Frankel": ({
-        -1: (2*s)/(1 + 2*s),
+        -1: C,
         0: 0,
-        1: (2*s)/(1 + 2*s)
+        1: -C
     }, {
-        -1: (1 - 2*s)/(1 + 2*s)
+        -1: 1
     }),
 
-    "[Impl] FTCS": ({
-        -1: -s,
-        0: 1 + 2*s,
-        1: -s
-    }, {}),
+    "[Impl] Dos niveles": ({
+        -1: -0.5*C,
+        0: 1,
+        1: 0.5*C
+    }, {
+        0: 1
+    }),
 
     "[Impl] Crank-Nicolson": ({
-        -1: -s/2,
-        0: 1 + s,
-        1: -s/2
+        -1: -C/4,
+        0: 1,
+        1: C/4
     }, {
-        -1: s/2,
-        0: 1 -s,
-        1: s/2
+        -1: C/4,
+        0: 1,
+        1: -C/4
     }),
 }
 
@@ -231,7 +223,7 @@ def textbox_expresion():
         representar()
 
     ax_box = fig.add_axes([0.08, 0.1, 0.72, 0.05])
-    textbox_expresion.box = TextBox(ax_box, "T", initial="np.random.random(N+1) * 10")
+    textbox_expresion.box = TextBox(ax_box, "T", initial="np.exp(-(t-1.0)**2/0.2)")
     textbox_expresion.box.on_submit(submit)
 
 def textbox_t0():
@@ -268,7 +260,6 @@ def button_t0():
     ax_box = fig.add_axes([0.13, 0.02, 0.04, 0.05])
     button_t0.button = Button(ax_box, "CF")
     button_t0.button.on_clicked(click)
-button_t0.previous_text = 0
 
 def button_tn():
     def click(event):
@@ -284,13 +275,12 @@ def button_tn():
     ax_box = fig.add_axes([0.27, 0.02, 0.04, 0.05])
     button_tn.button = Button(ax_box, "CF")
     button_tn.button.on_clicked(click)
-button_tn.previous_text = 0
 
 def textbox_dt():
     def submit(expr):
-        global dt, t, s, Ti
+        global dt, t, C, Ti
         dt = eval(expr)
-        s = alfa * (dt/dx**2)
+        C = u * (dt/dx)
         t = np.linspace(0, dt*N, N+1)
         Ti = eval(textbox_expresion.box.text)
         representar()
@@ -301,25 +291,25 @@ def textbox_dt():
 
 def textbox_dx():
     def submit(expr):
-        global dx, s
+        global dx, C
         dt = eval(expr)
-        s = alfa * (dt/dx**2)
+        C = u * (dt/dx)
         representar()
 
     ax_box = fig.add_axes([0.45, 0.02, 0.07, 0.05])
     textbox_dx.box = TextBox(ax_box, "dx ", initial=str(dx))
     textbox_dx.box.on_submit(submit)
 
-def textbox_alfa():
+def textbox_u():
     def submit(expr):
-        global alfa, s
-        alfa = eval(expr)
-        s = alfa * (dt/dx**2)
+        global u, C
+        u = eval(expr)
+        C = u * (dt/dx)
         representar()
 
     ax_box = fig.add_axes([0.54, 0.02, 0.07, 0.05])
-    textbox_alfa.box = TextBox(ax_box, "$\\alpha$ ", initial=str(alfa))
-    textbox_alfa.box.on_submit(submit)
+    textbox_u.box = TextBox(ax_box, "u ", initial=str(u))
+    textbox_u.box.on_submit(submit)
 
 def textbox_N():
     def submit(expr):
@@ -515,7 +505,7 @@ def main():
     button_tn()
     textbox_dt()
     textbox_dx()
-    textbox_alfa()
+    textbox_u()
     textbox_N()
     textbox_it()
     seleccionar_metodo()
