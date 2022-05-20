@@ -16,7 +16,7 @@ import matplotlib
 
 # Eixos
 fig, ax = plt.subplots(figsize=(9, 6))
-fig.subplots_adjust(bottom=0.2, right=0.92, top=0.95, left=0.08)
+fig.subplots_adjust(bottom=0.11, right=0.8, top=0.95, left=0.08)
 
 # Modo interactivo
 plt.ion()
@@ -39,14 +39,17 @@ fr = 30
 # Parámetros da discretización
 dt = 0.1
 dx = 0.5
+a = 0.1
 u = 0.05
-C = u * (dt/dx)
+C, s, t, Ti = None, None, None, None
 
-# Eixo temporal
-t = np.linspace(0, dt*N, N+1)
-
-# Valor inicial da temperatura
-Ti = np.exp(-(t-1.0)**2/0.2)
+def calcular_parametros():
+    global C, s, t, Ti
+    C = u * (dt/dx)
+    s = a * (dt/dx**2)
+    t = np.linspace(0, dt*N, N+1)
+    Ti = np.exp(-(t-1.0)**2/0.2)
+calcular_parametros()
 
 # ------------------------------------------------------------------
 # Coeficientes de x e t para os distintos métodos 
@@ -54,19 +57,19 @@ Ti = np.exp(-(t-1.0)**2/0.2)
 # ------------------------------------------------------------------
 
 coeficientes = lambda: {
-    "FTCS": ({
+    "[C] FTCS": ({
         -1: 0.5*C,
         0: 1,
         1: -0.5*C
     }, {}),
 
-    "Upwind": ({
+    "[C] Upwind": ({
         -1: C,
         0: 1 - C,
         1: 0
     }, {}),
 
-    "DuFort-Frankel": ({
+    "[C] DuFort-\nFrankel": ({
         -1: C,
         0: 0,
         1: -C
@@ -74,7 +77,7 @@ coeficientes = lambda: {
         -1: 1
     }),
 
-    "[Impl] Dos niveles": ({
+    "[CI] 2 niveis": ({
         -1: -0.5*C,
         0: 1,
         1: 0.5*C
@@ -82,7 +85,7 @@ coeficientes = lambda: {
         0: 1
     }),
 
-    "[Impl] Crank-Nicolson": ({
+    "[CI] Crank-\nNicolson": ({
         -1: -C/4,
         0: 1,
         1: C/4
@@ -91,9 +94,47 @@ coeficientes = lambda: {
         0: 1,
         1: -C/4
     }),
+
+    "[T] FTCS": ({
+        -1: 0.5*C + s,
+        0: -2*s + 1,
+        1: -0.5*C + s
+    }, {}),
+
+    "[T] Upwind": ({
+        -1: C + s,
+        0: 1 - C - 2*s,
+        1: s
+    }, {}),
+
+    "[T] DuFort-\nFrankel": ({
+        -1: 1/(1+2*s) * (C + 2*s),
+        0: 0,
+        1: 1/(1+2*s) * (-C + 2*s)
+    }, {
+        -1: 1/(1+2*s) * (1 - 2*s)
+    }),
+
+    "[TI] 2 niveis": ({
+        -1: -0.5*C - s,
+        0: 1 + 2*s,
+        1: 0.5*C - s
+    }, {
+        0: 1
+    }),
+
+    "[TI] Crank-\nNicolson": ({
+        -1: -s/2 - C/4,
+        0: 1 + s,
+        1: -s/2 + C/4
+    }, {
+        -1: s/2 + C/4,
+        0: 1 - s,
+        1: s/2 - C/4
+    }),
 }
 
-metodo = "[Impl] Crank-Nicolson"
+metodo = "[C] FTCS"
 
 # ------------------------------------------------------------------
 # ------------------------------------------------------------------
@@ -106,6 +147,7 @@ metodo = "[Impl] Crank-Nicolson"
 def representar():
     # Limpar a representación anterior
     ax.clear()
+    representar.frames.clear()
 
     # Función temperatura
     T = Ti.copy()
@@ -119,7 +161,7 @@ def representar():
     # ---
 
     # Método implícito
-    implicito = metodo[0:6] == "[Impl]"
+    implicito = metodo[2] == "I"
     M = None
     if implicito:
         # Matriz de coeficientes A
@@ -187,6 +229,12 @@ def representar():
             im = ax.plot(t, T[0, x_n-1:-x_n+1 or None], animated=True, color="royalblue")
             representar.frames.append(im)
 
+            if anim_evolucion:
+                for i in range(len(representar.frames)):
+                    representar.frames[i][0].set_animated(False)
+                    representar.frames[i][0].set_visible(True)
+                    representar.frames[i][0].set_color(cores[i % len(cores)])
+
     # Actualizar a vista
     ax.relim()
     ax.autoscale_view()
@@ -195,7 +243,7 @@ def representar():
 representar.frames = []
 
 # Controlador da animación
-anim = ArtistAnimation(fig, representar.frames, interval=60, blit=True, repeat_delay=1000)
+anim = ArtistAnimation(fig, representar.frames, interval=60, blit=True)
 anim_pausa = False
 anim_evolucion = False
 
@@ -208,7 +256,7 @@ anim_evolucion = False
 # ------------------------------------------------------------------
 
 # Botón pausa
-ax_boton_pausa = plt.axes([0.08, 0.10, 0.03, 0.04])
+ax_boton_pausa = plt.axes([0.08, 0.02, 0.03, 0.04])
 boton_pausa = Button(ax_boton_pausa, "II", color="royalblue", hovercolor="lightblue")
 boton_pausa.label.set_weight("bold")
 boton_pausa.label.set_color("white")
@@ -222,7 +270,7 @@ def pausa(event):
 boton_pausa_cid = boton_pausa.on_clicked(pausa)
 
 # Botón mostrar animación/evolución
-ax_boton_animar = plt.axes([0.12, 0.10, 0.07, 0.04])
+ax_boton_animar = plt.axes([0.12, 0.02, 0.07, 0.04])
 boton_animar = Button(ax_boton_animar, "mostrar\nevolución", color="royalblue", hovercolor="lightblue")
 boton_animar.label.set_color("white")
 boton_animar.label.set_fontsize("8")
@@ -265,6 +313,44 @@ boton_animar.on_clicked(animar)
 def pulsar_tecla(event):
     if event.key == " ":
         pausa(event)
+
+# Seleccionar método
+def seleccionar_metodo(label):
+    global metodo
+    metodo = label
+    representar()
+
+m = [k for k, v in coeficientes().items()]
+seleccionar_metodo_ax = fig.add_axes([0.82, 0.11, 0.16, 0.84])
+
+seleccionar_metodo_button = RadioButtons(seleccionar_metodo_ax, m, active=0, activecolor="royalblue")
+seleccionar_metodo_button.on_clicked(seleccionar_metodo)
+
+rpos = seleccionar_metodo_ax.get_position().get_points()
+fh = fig.get_figheight()
+fw = fig.get_figwidth()
+rscale = (rpos[:,1].ptp() / rpos[:,0].ptp()) * (fh / fw)
+
+for c in seleccionar_metodo_button.circles:
+    c.height /= rscale
+
+# Textboxes
+def textbox(nome, x, y):
+    def submit(expr):
+        globals()[nome] = eval(expr)
+        calcular_parametros()
+        representar()
+    box_ax = fig.add_axes([x, y, 0.055, 0.04])
+    box = TextBox(box_ax, nome + " ", initial=str(globals()[nome]))
+    box.on_submit(submit)
+    return box
+
+textbox_dt = textbox("dt", 0.220, 0.02)
+textbox_dx = textbox("dx", 0.305, 0.02)
+textbox_a = textbox("a", 0.385 , 0.02)
+textbox_u = textbox("u", 0.465, 0.02)
+textbox_N = textbox("N", 0.545, 0.02)
+textbox_it = textbox("it", 0.625, 0.02)
 
 # ------------------------------------------------------------------
 # ------------------------------------------------------------------
