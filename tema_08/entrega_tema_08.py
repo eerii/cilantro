@@ -1,6 +1,15 @@
 # Ecuacións de convección e transporte - Tema 8
 # José Pazos Pérez - G3
 
+# Índice
+#     - [14]  Importacións
+#     - [23]  Preparación de matplotlib
+#     - [40]  Valores iniciais
+#     - [74]  Coeficientes
+#     - [186] Solución da ecuacións e representación
+#     - [418] Funcións da interfaz gráfica
+#     - [560] Execución da aplicación
+
 # ------------------------------------------------------------------
 # Importacións
 # ------------------------------------------------------------------
@@ -44,10 +53,13 @@ dx = 0.5
 a = 0.5
 u = 0.05
 C, s, t, Ti = None, None, None, None
+
+# Parámetros específicos para as ecuacións en dúas dimensións
 d2x = 0.5
 d2y = 0.5
 sx, sy = None, None
 
+# Función para actualizar os parámetros que dependen de outros ó realizar algún cambio na interfaz
 def calcular_parametros():
     global C, s, t, Ti, sx, sy
     C = u * (dt/dx)
@@ -60,7 +72,11 @@ calcular_parametros()
 
 # ------------------------------------------------------------------
 # Coeficientes de x e t para os distintos métodos 
-# Actualízase automáticamente cando cambiamos s
+# Actualízase automáticamente cando cambiamos C ou s
+# C - Convección
+# T - Transporte
+# M - Multidimensional (de difusión)
+# I - Implícito (ou semiimplícito no caso da ecuación de difusión 2D)
 # ------------------------------------------------------------------
 
 coeficientes = lambda: {
@@ -164,6 +180,13 @@ metodo = "[C] FTCS"
 
 # ------------------------------------------------------------------
 # ------------------------------------------------------------------
+# ------------------------------------------------------------------
+
+# ------------------------------------------------------------------
+# Elixir entre a representación de unha e dúas dimensións en base ó método empregado
+# Na representación 2D ocultamos os controles, non porque non sexa posible utilizamos, mais tómalle tempo á pantalla representar
+# a animación e o cambio de valores fai que a aplicación se conxele un tempo considerable mentres se recalculan
+# Estaría ben optimizar a xeración e representación de imaxes en 2D mais para unha primeira versión considero que é aceptable
 # ------------------------------------------------------------------
 
 def representar():
@@ -280,13 +303,17 @@ def representar_1D():
             im = ax_1D.plot(t, T[0, x_n-1:-x_n+1 or None], animated=True, color="royalblue")
             representar.frames.append(im)
 
-            if anim_evolucion:
-                for i in range(len(representar.frames)):
-                    representar.frames[i][0].set_animated(False)
-                    representar.frames[i][0].set_visible(True)
-                    representar.frames[i][0].set_color(cores[i % len(cores)])
+    if anim_evolucion:
+        for i in range(len(representar.frames)):
+            representar.frames[i][0].set_animated(False)
+            representar.frames[i][0].set_visible(True)
+            representar.frames[i][0].set_color(cores[i % len(cores)])
 
     ax_1D.set_visible(True)
+
+# ------------------------------------------------------------------
+# Solución da ecuación de difusión en dúas dimensións
+# ------------------------------------------------------------------
 
 def representar_2D():
     # Limpar a representación anterior
@@ -368,6 +395,7 @@ def representar_2D():
             text_2D.set_text(f"Calculando... iteración {i}/{it}")
             plt.pause(0.000001)
     
+    # Actualizamos o texto indicativo e amosamos o gráfico na pantalla
     text_2D.set_text("Amosando en pantalla... (isto pode tardar un rato)")
     plt.pause(0.1)
     ax_2D.set_visible(True)
