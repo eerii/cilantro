@@ -15,8 +15,10 @@ import matplotlib
 # ------------------------------------------------------------------
 
 # Eixos
-fig, ax = plt.subplots(figsize=(9, 6))
+fig, ax_1D = plt.subplots(figsize=(9, 6))
 fig.subplots_adjust(bottom=0.11, right=0.8, top=0.95, left=0.08)
+ax_2D = fig.add_subplot(111)
+ax_2D.set_visible(False)
 
 # Modo interactivo
 plt.ion()
@@ -39,16 +41,21 @@ fr = 30
 # Parámetros da discretización
 dt = 0.1
 dx = 0.5
-a = 0.1
+a = 0.5
 u = 0.05
 C, s, t, Ti = None, None, None, None
+d2x = 0.5
+d2y = 0.5
+sx, sy = None, None
 
 def calcular_parametros():
-    global C, s, t, Ti
+    global C, s, t, Ti, sx, sy
     C = u * (dt/dx)
     s = a * (dt/dx**2)
     t = np.linspace(0, dt*N, N+1)
     Ti = np.exp(-(t-1.0)**2/0.2)
+    sx = a * (dt/d2x**2)
+    sy = a * (dt/d2y**2)
 calcular_parametros()
 
 # ------------------------------------------------------------------
@@ -132,6 +139,25 @@ coeficientes = lambda: {
         0: 1 - s,
         1: s/2 - C/4
     }),
+
+    "[M] FTCS 2D\nDifusión": ({
+        -1: sx,
+        0: 1 - 2*sx - 2*sy,
+        1: sx
+    }, {
+        -1: sy,
+        1: sy
+    }),
+
+    "[MI] ADI 2D\nDifusión": ({
+        -1: -0.5*sx,
+        0: 1+sx,
+        1: -0.5*sx
+    }, {
+        -1: -0.5*sy,
+        0: 1+sy,
+        1: -0.5*sy
+    }),
 }
 
 metodo = "[C] FTCS"
@@ -140,13 +166,38 @@ metodo = "[C] FTCS"
 # ------------------------------------------------------------------
 # ------------------------------------------------------------------
 
+def representar():
+    if metodo[1] == "M":
+        ax_boton_pausa.set_visible(False)
+        ax_boton_animar.set_visible(False)
+        ax_textbox_dt.set_visible(False)
+        ax_textbox_dx.set_visible(False)
+        ax_textbox_a.set_visible(False)
+        ax_textbox_u.set_visible(False)
+        ax_textbox_N.set_visible(False)
+        ax_textbox_it.set_visible(False)
+        text_2D.set_visible(True)
+        plt.pause(0.0001)
+        representar_2D()
+    else:
+        ax_boton_pausa.set_visible(True)
+        ax_boton_animar.set_visible(True)
+        ax_textbox_dt.set_visible(True)
+        ax_textbox_dx.set_visible(True)
+        ax_textbox_a.set_visible(True)
+        ax_textbox_u.set_visible(True)
+        ax_textbox_N.set_visible(True)
+        ax_textbox_it.set_visible(True)
+        text_2D.set_visible(False)
+        representar_1D()
+
 # ------------------------------------------------------------------
-# Solución da ecuación
+# Solución das ecuacións de convección e transporte en unha dimensión
 # ------------------------------------------------------------------
 
-def representar():
+def representar_1D():
     # Limpar a representación anterior
-    ax.clear()
+    ax_1D.clear()
     representar.frames.clear()
 
     # Función temperatura
@@ -226,7 +277,7 @@ def representar():
 
         # Gardamos un fotograma cada varias iteracións
         if i % (it // fr) == 0:
-            im = ax.plot(t, T[0, x_n-1:-x_n+1 or None], animated=True, color="royalblue")
+            im = ax_1D.plot(t, T[0, x_n-1:-x_n+1 or None], animated=True, color="royalblue")
             representar.frames.append(im)
 
             if anim_evolucion:
@@ -235,9 +286,93 @@ def representar():
                     representar.frames[i][0].set_visible(True)
                     representar.frames[i][0].set_color(cores[i % len(cores)])
 
-    # Actualizar a vista
-    ax.relim()
-    ax.autoscale_view()
+    ax_1D.set_visible(True)
+
+def representar_2D():
+    # Limpar a representación anterior
+    ax_2D.clear()
+    representar.frames.clear()
+
+    # Función temperatura (liña no centro)
+    T = np.zeros((N+1, N+1))
+    for i in range(N+1):
+        if i > N/2 - N/10 and i < N/2 + N/10:
+            T[i, i] = 10
+
+    # Coeficientes
+    cx, cy = coeficientes()[metodo]
+
+    # Dimensión do método (1 para 3 coeficientes, 2 para 5...)
+    x_n = (len(cx) >> 1)
+    assert x_n == 1
+
+    # ---
+
+    # Método semiimplícito
+    semiimplicito = metodo[2] == "I"
+    Ai, Bi = None, None
+    if semiimplicito:
+        # Matriz de coeficientes A
+        A = np.zeros((N+1, N+1))
+        for i in range(1, N):
+            for c in cx:
+                A[i, i+c] = cx[c]
+        A[0, 0] = 1
+        A[N, N] = 1
+        # Matriz de coeficientes B
+        B = np.zeros((N+1, N+1))
+        for i in range(1, N):
+            for c in cy:
+                B[i, i+c] = cy[c]
+        B[0, 0] = 1
+        B[N, N] = 1
+        # Matrices inversas
+        Ai = np.linalg.inv(A)
+        Bi = np.linalg.inv(B)
+
+    # ---
+
+    # Bucle temporal
+    for i in range(it):
+        T_ = T.copy()
+
+        # Método semi implicito (ADI)
+        if semiimplicito:
+            for j in range(1, N):
+                # Paso explícito en y
+                Y = np.concatenate([[0], sy/2 * T[1:N, j-1] + (1-sy) * T[1:N, j] + sy/2 * T[1:N, j+1], [0]])
+                # T_ por columnas
+                T_[:, j] = np.dot(Ai, Y)
+            for j in range(1, N):
+                # Paso explícito en x
+                X = np.concatenate([[0], sx/2 * T_[j-1, 1:N] + (1-sx) * T_[j, 1:N] + sx/2 * T_[j+1, 1:N], [0]])
+                # T por filas
+                T[j, :] = np.dot(Bi, X)
+        # Método explícito
+        else:
+            for j in range(1, N):
+                for k in range(1, N):
+                    T_[j, k] = sum([T[j+i, k] * coef for i, coef in cx.items()]) + sum([T[j, k+i] * coef for i, coef in cy.items()])
+            T = T_.copy()
+
+        # Condicions de fronteira de fluxo nulo
+        T[0, :] = T[1, :]
+        T[-1, :] = T[-2, :]
+        T[:, 0] = T[:, 1]
+        T[:, -1] = T[:, -2]
+
+        # Gardamos un fotograma cada varias iteracións
+        if i % (it // fr) == 0:
+            im = ax_2D.imshow(T, animated=True)
+            representar.frames.append([im])
+            text_2D.set_text(f"Calculando... iteración {i}/{it}")
+            plt.pause(0.000001)
+    
+    text_2D.set_text("Amosando en pantalla... (isto pode tardar un rato)")
+    plt.pause(0.1)
+    ax_2D.set_visible(True)
+    text_2D.set_text(f"it = {it}, dt = {dt}, dx = {d2x}, dy = {d2y}, alpha = {a}, sx = {sx}, sy = {sy}")
+
 
 # Lista con fotogramas da animación
 representar.frames = []
@@ -311,19 +446,43 @@ boton_animar.on_clicked(animar)
 
 # Teclado
 def pulsar_tecla(event):
-    if event.key == " ":
+    if event.key == " " and not metodo[1] == "M":
         pausa(event)
 
 # Seleccionar método
 def seleccionar_metodo(label):
-    global metodo
+    global metodo, it, dt, a, anim_evolucion
     metodo = label
+
+    anim.pause()
+    ax_1D.set_visible(False)
+    ax_2D.set_visible(False)
+
+    if metodo[1] == "C":
+        it = 2000
+        dt = 0.1
+
+    if metodo[1] == "T":
+        it = 2000
+        dt = 0.1
+        a = 0.01
+
+    if metodo[1] == "M":
+        anim_evolucion = False
+        it = 100
+        dt = 0.1
+        a = 0.5
+
+    calcular_parametros()
+    actualizar_textboxes()
     representar()
+    if not anim_evolucion:
+        anim.resume()
 
 m = [k for k, v in coeficientes().items()]
 seleccionar_metodo_ax = fig.add_axes([0.82, 0.11, 0.16, 0.84])
 
-seleccionar_metodo_button = RadioButtons(seleccionar_metodo_ax, m, active=0, activecolor="royalblue")
+seleccionar_metodo_button = RadioButtons(seleccionar_metodo_ax, m, active=list(coeficientes().keys()).index(metodo), activecolor="royalblue")
 seleccionar_metodo_button.on_clicked(seleccionar_metodo)
 
 rpos = seleccionar_metodo_ax.get_position().get_points()
@@ -337,20 +496,33 @@ for c in seleccionar_metodo_button.circles:
 # Textboxes
 def textbox(nome, x, y):
     def submit(expr):
+        if globals()[nome] == eval(expr):
+            return
         globals()[nome] = eval(expr)
         calcular_parametros()
         representar()
     box_ax = fig.add_axes([x, y, 0.055, 0.04])
     box = TextBox(box_ax, nome + " ", initial=str(globals()[nome]))
     box.on_submit(submit)
-    return box
+    return box, box_ax
 
-textbox_dt = textbox("dt", 0.220, 0.02)
-textbox_dx = textbox("dx", 0.305, 0.02)
-textbox_a = textbox("a", 0.385 , 0.02)
-textbox_u = textbox("u", 0.465, 0.02)
-textbox_N = textbox("N", 0.545, 0.02)
-textbox_it = textbox("it", 0.625, 0.02)
+textbox_dt, ax_textbox_dt = textbox("dt", 0.220, 0.02)
+textbox_dx, ax_textbox_dx = textbox("dx", 0.305, 0.02)
+textbox_a, ax_textbox_a = textbox("a", 0.385 , 0.02)
+textbox_u, ax_textbox_u = textbox("u", 0.465, 0.02)
+textbox_N, ax_textbox_N = textbox("N", 0.545, 0.02)
+textbox_it, ax_textbox_it = textbox("it", 0.625, 0.02)
+
+text_2D = fig.text(0.08, 0.03, "Calculando... iteración 0/100", color="royalblue")
+text_2D.set_visible(False)
+
+def actualizar_textboxes():
+    textbox_dt.set_val(str(dt))
+    textbox_dx.set_val(str(dx))
+    textbox_a.set_val(str(a))
+    textbox_u.set_val(str(u))
+    textbox_N.set_val(str(N))
+    textbox_it.set_val(str(it))
 
 # ------------------------------------------------------------------
 # ------------------------------------------------------------------
